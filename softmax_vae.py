@@ -16,7 +16,7 @@ input_dim = 32 * 32 * 3
 latent_dim = 900  # Updated latent dimension
 output_dim = input_dim
 batch_size = 128
-num_epochs = 20  # Total number of epochs
+num_epochs = 2200  # Total number of epochs
 learning_rate = 3e-4  # Updated learning rate
 meta_epoch = 10  # Save every 10 epochs
 
