@@ -16,7 +16,7 @@ input_dim = 32 * 32 * 3
 latent_dim = 900  # Updated latent dimension
 output_dim = input_dim
 batch_size = 128
-num_epochs = 2000  # Total number of epochs
+num_epochs = 20  # Total number of epochs
 learning_rate = 3e-4  # Updated learning rate
 meta_epoch = 10  # Save every 10 epochs
 
@@ -173,12 +173,19 @@ def ssim(img1, img2, window_size=11, size_average=True):
     else:
         return ssim_map.mean(1).mean(1).mean(1)
 
-def custom_loss_function(reconstructed_x, x, epoch, total_epochs):
+def custom_loss_function(reconstructed_x, x, z, epoch, total_epochs):
     mse_loss = F.mse_loss(reconstructed_x, x, reduction='sum').to(device)
-    ssim_loss = (1 - ssim(reconstructed_x, x)).to(device)
-
+    #ssim_loss = (1 - ssim(reconstructed_x, x)).to(device)
+    # Create a uniform distribution as the target
+    uniform_target = torch.full_like(z, 1.0 / z.size(1)).to(device)
+    # Clamp z to avoid log(0) issues
+    z = torch.clamp(z, 1e-10, 1.0)
+    # Cross-Entropy Loss for the latent space
+    cross_entropy_loss = F.kl_div(z.log(), uniform_target, reduction='batchmean').to(device)
+    
+    # Weighted combination
     alpha = epoch / total_epochs
-    loss = (1 - alpha) * ssim_loss + alpha * mse_loss
+    loss = (1 - alpha) * cross_entropy_loss + alpha * mse_loss #(1 - alpha) * ssim_loss + alpha * mse_loss
 
     return loss
 
@@ -239,7 +246,7 @@ for epoch in range(start_epoch_vae, total_epochs):
             # Training new VAE model
             vae_optimizer.zero_grad()
             reconstructed_x_vae, z_vae = vae_model(images)
-            loss_vae = custom_loss_function(reconstructed_x_vae.to(device), images, epoch, total_epochs)
+            loss_vae = custom_loss_function(reconstructed_x_vae.to(device), images, z_vae, epoch, total_epochs)
             loss_vae.backward()
             vae_optimizer.step()
 
